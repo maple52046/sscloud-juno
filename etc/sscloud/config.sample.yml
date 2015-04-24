@@ -1,0 +1,29 @@
+network_topology:
+  localhost:
+    openvswitch:
+      br-ex: {{ extdev }}
+    {{ extdev }}:
+      {% for ipset in iplist %}
+      - {{ ipset }}
+      {% endfor %}
+
+openstack:
+  admin:
+    user: {{ admin.user }}
+    tenant: {{ admin.tenant }}
+    password: {{ admin.password }}
+    email: {{ admin.email }}
+    token: {{ admin.token }}
+  controller: {{ controller }}
+  compute:
+    {% for compute in computes %}
+    - {{ compute }}
+    {% endfor %}
+  horizon:
+    domain: {{ domain }}
+    https:
+      enable: {{ https.enable }}
+      {% if https.enable %}
+      crt: {{ https.crt }}
+      key: {{ https.key }}
+      {% endif %}

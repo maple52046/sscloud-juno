@@ -1,0 +1,65 @@
+# SSCloud Dashboard
+upstream horizon {
+    {% for index in range(grains['num_cpus']) -%}
+    server unix:///var/run/openstack-dashboard/horizon.{{ index }}.sock fail_timeout=0;
+    {% endfor %}
+}
+
+# NoVNC
+upstream novnc {
+    server 127.0.0.1:6080 fail_timeout=0;
+}
+
+# OpenStack keystone public endpoint
+upstream keystone {
+	server {{ salt['pillar.get']('keystone:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:5000;
+}
+
+# OpenStack glance public endpoint
+upstream glance {
+	server {{ salt['pillar.get']('glance:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:9292;
+}
+
+# OpenStack cinder public endpoint
+upstream cinder {
+	server {{ salt['pillar.get']('cinder:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:8776;
+}
+
+# OpenStack nova public endpoint
+upstream nova {
+	server {{ salt['pillar.get']('nova:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:8774;
+}
+
+# OpenStack neutron public endpoint
+upstream neutron {
+	server {{ salt['pillar.get']('neutron:node:server', salt['pillar.get']('openstack:controller', 'localhost')) }}:9696;
+}
+
+{% if salt['pillar.get']('openstack:horizon:https:enable', False) == False -%}
+server {
+    listen 80;
+    server_name {{ salt['pillar.get']('openstack:horizon:domain', grains['fqdn']) }};
+
+    {% include "dashboard/nginx-location-settings" %}
+}
+{% else -%}
+server {
+    listen 80;
+    server_name {{ salt['pillar.get']('openstack:horizon:domain', grains['fqdn']) }};
+    rewrite ^ https://$server_name$request_uri? permanent;
+}
+server {  
+    listen 443;
+    server_name {{ salt['pillar.get']('openstack:horizon:domain', grains['fqdn']) }};
+
+    ssl on;
+    ssl_certificate {{ salt['pillar.get']('openstack:horizon:https:crt','/etc/sscloud/ssl/sscloud.crt') }};
+    ssl_certificate_key {{ salt['pillar.get']('openstack:horizon:https:key','/etc/sscloud/ssl/sscloud.key') }};
+    ssl_session_timeout 5m;
+    ssl_protocols SSLv2 SSLv3 TLSv1;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    {% include "dashboard/nginx-location-settings" %}
+}
+{% endif -%}

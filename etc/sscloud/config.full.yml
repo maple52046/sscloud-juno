@@ -1,0 +1,173 @@
+network_topology:
+  localhost:
+    openvswitch:
+      br-ex: eth0
+    eth0:
+      - [ '192.168.0.1', '255.255.255.0', '192.168.0.254' ]
+      - [ '172.16.0.1', '255.255.0.0' ]
+
+rabbitmq:
+  host: localhost
+  admin:
+    user: admin
+    password: sscloudadmin
+
+postgresql:
+  host: localhost
+
+ntp:
+  server:
+    - time.stdtime.gov.tw
+    - clock.stdtime.gov.tw
+
+openstack:
+  admin:
+    user: admin
+    tenant: admin
+    password: sscloudadmin
+    email: admin@localhost
+    token: 0cc90602a527c5ab3fe8
+  controller: localhost
+  compute:
+    - localhost
+  horizon:
+    domain: localhost
+    https:
+      enable: True
+      crt: /etc/sscloud/ssl/sscloud.crt
+      key: /etc/sscloud/ssl/sscloud.crt
+  region: regionOne
+  database:
+    backend: postgresql
+
+keystone:
+  endpoint:
+    public: http://127.0.0.1:5000/v2.0
+    internal: http://localhost:5000/v2.0
+    admin: http://localhost:35357/v2.0
+  database:
+    backend: postgresql
+    user: keystone
+    password: myKEY5T0NEp255wd
+    name: keystone
+    host: localhost
+  region: regionOne
+
+glance:
+  host: localhost
+  endpoint:
+    public: http://127.0.0.1:9292
+    internal: http://localhost:9292
+    admin: http://localhost:9292
+  database:
+    backend: postgresql
+    user: glance
+    password: my9L2NCEp255wd
+    name: glance
+    host: localhost
+  rpc: rabbitmq
+  rabbitmq:
+    host: localhost
+    user: glance
+    password: glance
+    vhost: glance
+  service:
+    user: glance
+    password: 0cc90602a527c5ab3fe8
+    tenant: service
+    region: regionOne
+
+cinder:
+  host: localhost
+  endpoint:
+    v1:
+      public: http://127.0.0.1:8776/v1/%(tenant_id)s
+      internal: http://localhost:8776/v1/%(tenant_id)s
+      admin: http://localhost:8776/v1/%(tenant_id)s
+    v2:
+      public: http://127.0.0.1:8776/v2/%(tenant_id)s
+      internal: http://localhost:8776/v2/%(tenant_id)s
+      admin: http://localhost:8776/v2/%(tenant_id)s
+  database:
+    backend: postgresql
+    user: cinder
+    password: myC1NDERp255wd
+    name: cinder
+    host: localhost
+  rpc: rabbitmq
+  rabbitmq:
+    host: localhost
+    user: cinder
+    password: cinder
+    vhost: cinder
+  service:
+    user: cinder
+    password: 0cc90602a527c5ab3fe8
+    tenant: cinder
+    region: regionOne
+
+nova:
+  host: localhost
+  endpoint:
+    public: http://127.0.0.1:8774/v2/%(tenant_id)s
+    internal: http://localhost:8774/v2/%(tenant_id)s
+    admin: http://localhost:8774/v2/%(tenant_id)s
+  ec2:
+    public: http://127.0.0.1:8773/services/Cloud
+    internal: http://localhost:8773/services/Cloud
+    admin: http://localhost:8773/services/Cloud
+  compute:
+    - localhost
+  database:
+    backend: postgresql
+    user: nova
+    password: myN0V2p255wd
+    name: nova
+    host: localhost
+  novnc:
+    https: False
+    crt: /etc/sscloud/ssl/sscloud.crt
+    key: /etc/sscloud/ssl/sscloud.key
+    url: http://127.0.0.1/console/vnc_auto.html
+  metadata:
+    secret: SSCloud
+  rpc: rabbitmq
+  rabbitmq:
+    host: localhost
+    user: nova
+    password: nova
+    vhost: nova
+  service:
+    user: nova
+    password: 0cc90602a527c5ab3fe8
+    tenant: service
+    region: regionOne
+
+neutron:
+  node:
+    server: localhost
+    network:
+      - localhost
+    compute:
+      - localhost
+  endpoint:
+    public: http://127.0.0.1:9696
+    internal: http://localhost:9696
+    admin: http://localhost:9696
+  database:
+    backend: postgresql
+    user: neutron
+    password: myNEUTR0Np255wd
+    name: neutron
+    host: localhost
+  rpc: rabbitmq
+  rabbitmq:
+    host: twin-26
+    user: neutron
+    password: neutron
+    vhost: neutron
+  service:
+    user: neutron
+    password: 0cc90602a527c5ab3fe8
+    tenant: service
+    region: regionOne
