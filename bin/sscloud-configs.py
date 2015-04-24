@@ -1,12 +1,15 @@
 #!/opt/sscloud/bin/python
 
 import logging
+import netaddr
+import netifaces
 import os
 import yaml
 
 from jinja2 import Template
 from platform import uname
 from shutil import move
+from socket import getfqdn
 from subprocess import check_output
 
 logger = logging.getLogger(__main__)
@@ -15,7 +18,7 @@ class configs:
 	def __init__(self, config='/etc/sscloud/config.yml'):
 		self.config = config
 
-	def genconfig(self, admin, tenant, password, email=None, token=None):
+	def genconfig(self, admin, tenant, password, email=None, token=None, controller=None, compute=None, horizon_domain=None, enable_https=False, ssl_crt=None, ssl_key=None):
 		base_dir = '/'.join(self.config.split('/')[:-1])
 		if not os.path.exists(base_dir):
 			os.makedirs(base_dir)
@@ -32,6 +35,8 @@ class configs:
 			template = Template(f.readlines())
 
 		settings = {}
+
+		# Admin account information
 		settings['admin'] = {'user': str(admin)}
 		settings['admin']['tenant'] = str(tenant)
 		settings['admin']['password'] = str(password)
@@ -43,6 +48,37 @@ class configs:
 			token = str(check_output('openssl rand -hex 10', shell=True))
 		settings['admin']['token'] = str(token)
 
+		# OpenStack settings
+		settings['controller'] = str(controller) if controller else uname()[1]
+		settings['compute'] = compute if compute and type(compute) is list else [uname()[1]]
+		settings['horizon'] = {}
+		settings['horizon']['domain'] = str(horizon_domain) if horizon_domain else getfqdn()
+		settings['horizon']['https'] = {'enable': bool(enable_https) }
+		if bool(enable_https):
+			for item, ssl_file in [('crt', ssl_crt), ('key', ssl_key)]:
+				settings['horizon']['https'][item] = ssl_file if ssl_file else '/etc/sscloud/ssl/sscloud.%s' % (item)
+				if not os.path.isfile(settings['horizon']['https'][item]):
+					logger.warning('Missing ssl file: %s, please put file in correct path before you start deployment.' % settings['horizon']['https'][item])
+
+		# The network settings of external interface in Neutron server (default is OpenStack controller node)
+		try:
+			gw, iface = netifaces.gateways()['defualt'][netifaces.AF_INET]
+			network = {'openvswitch': {'br-ex': iface}, iface: [] }
+			for _ in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
+				ipset = [_['addr'] , _['netmask']]
+				ip_network = netaddr.IPNetwork('{ip/netmask}'.format(ip=_['addr'], netmask=_['netmask'])).network
+				gw_network = netaddr.IPNetwork('{ip/netmask}'.format(ip=gw, netmask=_['netmask'])).network
+				if ip_network == gw_network:
+					ipset.append(gw)
+				network[iface].append(ipset)
+			settings['network_topology'] = { settings['controller']: network }
+				
+		except Exception, error:
+			logger.error('Unknown error: %s', str(error))
+		
+		with open(self.config, 'w') as f:
+			yaml.dump(settings, f)
+				
 
 		#with open(self.config, 'w') as f:
 		#	config = yaml.load(f)
