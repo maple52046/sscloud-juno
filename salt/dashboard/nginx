@@ -30,6 +30,11 @@ upstream nova {
 	server {{ salt['pillar.get']('nova:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:8774;
 }
 
+# OpenStack ec2 endpoint
+upstream ec2 {
+	server {{ salt['pillar.get']('nova:host', salt['pillar.get']('openstack:controller', 'localhost')) }}:8773;
+}
+
 # OpenStack neutron public endpoint
 upstream neutron {
 	server {{ salt['pillar.get']('neutron:node:server', salt['pillar.get']('openstack:controller', 'localhost')) }}:9696;

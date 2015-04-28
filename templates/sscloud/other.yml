@@ -1,0 +1,148 @@
+{% if settings['openstack']['horizon']['https']['enable'] %}
+{% set http = "https" %}
+{% else %}
+{% set http = "http" %}
+{% endif %}
+
+rabbitmq:
+  host: {{ settings['openstack']['controller'] }}
+  admin:
+    user: {{ settings['openstack']['admin']['user'] }}
+    password: {{ settings['openstack']['admin']['password'] }}
+
+postgresql:
+  host: {{ settings['openstack']['controller'] }}
+
+keystone:
+  endpoint:
+    public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/keystone/v2.0
+    internal: http://{{ settings['openstack']['controller'] }}:5000/v2.0
+    admin: http://{{ settings['openstack']['controller'] }}:35357/v2.0
+  database:
+    backend: postgresql
+    user: keystone
+    password: myKEY5T0NEp255wd
+    name: keystone
+    host: {{ settings['openstack']['controller'] }}
+  region: {{ settings['openstack']['region'] }}
+
+glance:
+  host: {{ settings['openstack']['controller'] }}
+  endpoint:
+    public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/glance
+    internal: http://{{ settings['openstack']['controller'] }}:9292
+    admin: http://{{ settings['openstack']['controller'] }}:9292
+  database:
+    backend: postgresql
+    user: glance
+    password: my9L2NCEp255wd
+    name: glance
+    host: {{ settings['openstack']['controller'] }}
+  rpc: rabbitmq
+  rabbitmq:
+    host: {{ settings['openstack']['controller'] }}
+    user: glance
+    password: glance
+    vhost: glance
+  service:
+    user: glance
+    password: {{ settings['openstack']['admin']['token'] }}
+    tenant: service
+    region: {{ settings['openstack']['region'] }}
+
+cinder:
+  host: {{ settings['openstack']['controller'] }}
+  endpoint:
+    v1:
+      public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/cinder/v1/%(tenant_id)s
+      internal: http://{{ settings['openstack']['controller'] }}:8776/v1/%(tenant_id)s
+      admin: http://{{ settings['openstack']['controller'] }}:8776/v1/%(tenant_id)s
+    v2:
+      public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/cinder/v2/%(tenant_id)s
+      internal: http://{{ settings['openstack']['controller'] }}:8776/v2/%(tenant_id)s
+      admin: http://{{ settings['openstack']['controller'] }}:8776/v2/%(tenant_id)s
+  database:
+    backend: postgresql
+    user: cinder
+    password: myC1NDERp255wd
+    name: cinder
+    host: {{ settings['openstack']['controller'] }}
+  rpc: rabbitmq
+  rabbitmq:
+    host: {{ settings['openstack']['controller'] }}
+    user: cinder
+    password: cinder
+    vhost: cinder
+  service:
+    user: cinder
+    password: {{ settings['openstack']['admin']['token'] }}
+    tenant: cinder
+    region: {{ settings['openstack']['region'] }}
+
+nova:
+  host: {{ settings['openstack']['controller'] }}
+  endpoint:
+    public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/nova/v2/%(tenant_id)s
+    internal: http://{{ settings['openstack']['controller'] }}:8774/v2/%(tenant_id)s
+    admin: http://{{ settings['openstack']['controller'] }}:8774/v2/%(tenant_id)s
+  ec2:
+    public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/ec2/services/Cloud
+    internal: http://{{ settings['openstack']['controller'] }}:8773/services/Cloud
+    admin: http://{{ settings['openstack']['controller'] }}:8773/services/Cloud
+  compute:
+    - {{ settings['openstack']['controller'] }}
+  database:
+    backend: postgresql
+    user: nova
+    password: myN0V2p255wd
+    name: nova
+    host: {{ settings['openstack']['controller'] }}
+  novnc:
+    https: {{ settings['openstack']['horizon']['https']['enable'] }}
+    {% if settings['openstack']['horizon']['https']['enable'] %}
+    crt: {{ settings['openstack']['horizon']['https']['crt'] }}
+    key: {{ settings['openstack']['horizon']['https']['key'] }}
+    {% endif %}
+    url: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/console/vnc_auto.html
+  metadata:
+    secret: SSCloud
+  rpc: rabbitmq
+  rabbitmq:
+    host: {{ settings['openstack']['controller'] }}
+    user: nova
+    password: nova
+    vhost: nova
+  service:
+    user: nova
+    password: {{ settings['openstack']['admin']['token'] }}
+    tenant: service
+    region: {{ settings['openstack']['region'] }}
+
+neutron:
+  node:
+    server: {{ settings['openstack']['controller'] }}
+    network:
+      - {{ settings['openstack']['controller'] }}
+    compute:
+      - {{ settings['openstack']['controller'] }}
+  endpoint:
+    public: {{ http }}://{{ settings['openstack']['horizon']['domain'] }}/neutron
+    internal: http://{{ settings['openstack']['controller'] }}:9696
+    admin: http://{{ settings['openstack']['controller'] }}:9696
+  database:
+    backend: postgresql
+    user: neutron
+    password: myNEUTR0Np255wd
+    name: neutron
+    host: {{ settings['openstack']['controller'] }}
+  rpc: rabbitmq
+  rabbitmq:
+    host: {{ settings['openstack']['controller'] }}
+    user: neutron
+    password: neutron
+    vhost: neutron
+  service:
+    user: neutron
+    password: {{ settings['openstack']['admin']['token'] }}
+    tenant: service
+    region: {{ settings['openstack']['region'] }}

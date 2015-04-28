@@ -7,7 +7,7 @@ import os
 import yaml
 
 from getpass import getpass
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 from platform import uname
 from shutil import move
 from socket import getfqdn
@@ -19,6 +19,33 @@ class configs:
 	def __init__(self, config='/etc/sscloud/config.yml'):
 		self.config = config
 		self._admin = None
+
+	def genconfig_full(self, user, password, **kwargs):
+		"""
+		Genarete full SSCloud configuratoin.
+		Arguments is same with genconfig()
+		"""
+		if self.genconfig(user, password, **kwargs):
+			# Generate a simple configuration at first.
+			# Then, get settings from simple configuration.
+			with open(self.config, 'r') as f:
+				settings = yaml.load(f)
+
+			# Get template
+			dname = os.path.dirname(__file__) + '/../templates/sscloud'
+			env = Environment(loader=FileSystemLoader(os.path.abspath(dname)))
+			template = env.get_template('other.yml')
+
+			# Generate new settings
+			other = yaml.load(template.render(settings=settings))
+			output = dict((settings.items() + other.items()))
+
+			# Save new settings to configuration
+			with open(self.config, 'w') as f:
+				yaml.dump(output, f, default_flow_style=False)
+			return True
+
+		return False
 
 	def genconfig(self, user, password, **kwargs):
 		"""
@@ -64,9 +91,9 @@ class configs:
 		if dashboard['https']['enable']:
 			for ca in ['crt', 'key']:
 				key = 'ca' + ca
-				dashboard['https'][key] = str(kwargs.setdefault(key, '/etc/sscloud/ssl/sscloud.%s' % (ca)))
-				if not os.path.isfile(dashboard['https'][key]):
-					logger.warning('Missing ssl file: %s, please put file in correct path before you start deployment.' % dashboard['https'][ssl])
+				dashboard['https'][ca] = str(kwargs.setdefault(key, '/etc/sscloud/ssl/sscloud.%s' % (ca)))
+				if not os.path.isfile(dashboard['https'][ca]):
+					logger.warning('Missing ssl file: %s, please put file in correct path before you start deployment.' % dashboard['https'][ca])
 		sscloud['horizon'] = dashboard
 
 		# Network settings of controller node (Neutron server)
@@ -112,7 +139,7 @@ if __name__ == "__main__":
 	import argparse
 
 	# Set console logger
-	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 	root = logging.getLogger()
 	ch = logging.StreamHandler()
 	ch.setLevel(logging.DEBUG)
@@ -125,6 +152,7 @@ if __name__ == "__main__":
 	)
 
 	parser.add_argument('-c', '--config', default='/etc/sscloud/config.yml', help='the path of SSCloud configuration.')
+	parser.add_argument('--full-config', action="store_true", help='genrate full settings configuration')
 	parser.add_argument('-u', '--user', default='admin', help='user name of SSCloud administrator.')
 	parser.add_argument('-p', '--password', help='password for SSCloud administrator.')
 	parser.add_argument('-t', '--tenant', default='admin', help='tenant name for SSCloud administrator.')
@@ -152,5 +180,9 @@ if __name__ == "__main__":
 
 	# Generate SSCloud configuration
 	obj = configs(kwargs.pop('config'))
-	print obj.genconfig(kwargs.pop('user'), kwargs.pop('password'), **kwargs)
+	if args.full_config:
+		kwargs.pop('full_config')
+		print 'Finished' if obj.genconfig_full(kwargs.pop('user'), kwargs.pop('password'), **kwargs) else 'Error!'
+	else:
+		print 'Finished' if obj.genconfig(kwargs.pop('user'), kwargs.pop('password'), **kwargs) else 'Error!'
 

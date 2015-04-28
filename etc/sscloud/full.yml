@@ -6,20 +6,6 @@ network_topology:
       - [ '192.168.0.1', '255.255.255.0', '192.168.0.254' ]
       - [ '172.16.0.1', '255.255.0.0' ]
 
-rabbitmq:
-  host: localhost
-  admin:
-    user: admin
-    password: sscloudadmin
-
-postgresql:
-  host: localhost
-
-ntp:
-  server:
-    - time.stdtime.gov.tw
-    - clock.stdtime.gov.tw
-
 openstack:
   admin:
     user: admin
@@ -37,8 +23,15 @@ openstack:
       crt: /etc/sscloud/ssl/sscloud.crt
       key: /etc/sscloud/ssl/sscloud.crt
   region: regionOne
-  database:
-    backend: postgresql
+
+rabbitmq:
+  host: localhost
+  admin:
+    user: admin
+    password: sscloudadmin
+
+postgresql:
+  host: localhost
 
 keystone:
   endpoint:
