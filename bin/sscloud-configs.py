@@ -6,19 +6,90 @@ import netifaces
 import os
 import yaml
 
+from getpass import getpass
 from jinja2 import Template
 from platform import uname
 from shutil import move
 from socket import getfqdn
 from subprocess import check_output
 
-logger = logging.getLogger(__main__)
+logger = logging.getLogger(__name__)
 
 class configs:
 	def __init__(self, config='/etc/sscloud/config.yml'):
 		self.config = config
+		self._admin = None
 
-	def genconfig(self, admin, tenant, password, email=None, token=None, controller=None, compute=None, horizon_domain=None, enable_https=False, ssl_crt=None, ssl_key=None):
+	def genconfig(self, user, password, **kwargs):
+		"""
+		Genarate SSCloud configuration
+
+		Args:
+			- user: user name of administrator
+			- password: password of administrator
+
+		Kwargs:
+			- tenant: tenant name of administrator
+			- email: email of administrator
+			- token: admin token for Keystone
+			- controller: controller node of SSCloud
+			- domainname: public domainname for dashboard
+			- https: enable(True) of disable(False) https protocol for dashboard
+			- cacrt: path of ca certificate
+			- cakey: path of ca public key
+		"""
+
+		#Process args
+		settings = dict()
+
+		# Admin account information
+		admin = dict()
+		admin['user'] = str(user)
+		admin['password'] = str(password)
+		admin['tenant'] = str(kwargs.setdefault('tenant', 'admin'))
+		admin['token'] = str(kwargs.setdefault('token', check_output('openssl rand -hex 10', shell=True))).split('\n')[0]
+		
+		# SSCloud settings
+		sscloud = dict()
+		sscloud['controller'] = str(kwargs.setdefault('controller', uname()[1]))
+		#sscloud['compute'] = list().append(sscloud['controller'])
+		sscloud['compute'] = [sscloud['controller']]
+
+		# SSCloud dashboard
+		dashboard = dict()
+		dashboard['domain'] = str(kwargs.setdefault('domainname', getfqdn()))
+		dashboard['https'] = dict()
+		dashboard['https']['enable'] = bool(kwargs.setdefault('https', False))
+		if dashboard['https']['enable']:
+			for ca in ['crt', 'key']:
+				key = 'ca' + ca
+				dashboard['https'][key] = str(kwargs.setdefault(key, '/etc/sscloud/ssl/sscloud.%s' % (ca)))
+				if not os.path.isfile(dashboard['https'][key]):
+					logger.warning('Missing ssl file: %s, please put file in correct path before you start deployment.' % dashboard['https'][ssl])
+		sscloud['horizon'] = dashboard
+
+		# Network settings of controller node (Neutron server)
+		try:
+			gw, iface = netifaces.gateways()['default'][netifaces.AF_INET]
+			network = {'openvswitch': {'br-ex': iface}, iface: [] }
+			for _ in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
+				ipset = [_['addr'] , _['netmask']]
+				ip_network = netaddr.IPNetwork('{ip}/{netmask}'.format(ip=_['addr'], netmask=_['netmask'])).network
+				gw_network = netaddr.IPNetwork('{ip}/{netmask}'.format(ip=gw, netmask=_['netmask'])).network
+				if ip_network == gw_network:
+					ipset.append(gw)
+				network[iface].append(ipset)
+			settings['network_topology'] = { sscloud['controller']: network }
+				
+		except Exception, error:
+			logger.error('Unknown error: %s', str(error))
+
+		# Other
+		admin['email'] = str(kwargs.setdefault('email', '{0}@{1}'.format(str(user), dashboard['domain'])))
+		sscloud['admin'] = admin
+		settings['openstack'] = sscloud
+
+		# Save configuration
 		base_dir = '/'.join(self.config.split('/')[:-1])
 		if not os.path.exists(base_dir):
 			os.makedirs(base_dir)
@@ -27,81 +98,58 @@ class configs:
 			try:
 				backup_orig = self.config + '.orig'
 				move(self.config, backup_orig)
-				logger.warning('%s is already exist. Move file to %s',self.config, back_orig)
+				logger.warning('%s is already exist. Move file to %s',self.config, backup_orig)
 			except Exception, err:
 				logger.error('Unknown error: %s', str(err))
 
-		with open('/opt/sscloud/etc/sscloud/config.sample.yml', 'r') as f:
-			template = Template(f.readlines())
-
-		settings = {}
-
-		# Admin account information
-		settings['admin'] = {'user': str(admin)}
-		settings['admin']['tenant'] = str(tenant)
-		settings['admin']['password'] = str(password)
-		if not email:
-			email = '{user}@{host}'.format(user=settings['admin']['user'], uname()[1])
-		settings['admin']['email'] = str(email)
-
-		if not token:
-			token = str(check_output('openssl rand -hex 10', shell=True))
-		settings['admin']['token'] = str(token)
-
-		# OpenStack settings
-		settings['controller'] = str(controller) if controller else uname()[1]
-		settings['compute'] = compute if compute and type(compute) is list else [uname()[1]]
-		settings['horizon'] = {}
-		settings['horizon']['domain'] = str(horizon_domain) if horizon_domain else getfqdn()
-		settings['horizon']['https'] = {'enable': bool(enable_https) }
-		if bool(enable_https):
-			for item, ssl_file in [('crt', ssl_crt), ('key', ssl_key)]:
-				settings['horizon']['https'][item] = ssl_file if ssl_file else '/etc/sscloud/ssl/sscloud.%s' % (item)
-				if not os.path.isfile(settings['horizon']['https'][item]):
-					logger.warning('Missing ssl file: %s, please put file in correct path before you start deployment.' % settings['horizon']['https'][item])
-
-		# The network settings of external interface in Neutron server (default is OpenStack controller node)
-		try:
-			gw, iface = netifaces.gateways()['defualt'][netifaces.AF_INET]
-			network = {'openvswitch': {'br-ex': iface}, iface: [] }
-			for _ in netifaces.ifaddresses(iface)[netifaces.AF_INET]:
-				ipset = [_['addr'] , _['netmask']]
-				ip_network = netaddr.IPNetwork('{ip/netmask}'.format(ip=_['addr'], netmask=_['netmask'])).network
-				gw_network = netaddr.IPNetwork('{ip/netmask}'.format(ip=gw, netmask=_['netmask'])).network
-				if ip_network == gw_network:
-					ipset.append(gw)
-				network[iface].append(ipset)
-			settings['network_topology'] = { settings['controller']: network }
-				
-		except Exception, error:
-			logger.error('Unknown error: %s', str(error))
-		
 		with open(self.config, 'w') as f:
-			yaml.dump(settings, f)
-				
+			yaml.dump(settings, f, default_flow_style=False)
 
-		#with open(self.config, 'w') as f:
-		#	config = yaml.load(f)
+		return True
 
-		#	config.setdefault('openstack': {})
-		#	if type(config['openstack']) is not dict:
-		#		logger.error('Configuration has wrong format, the value of [openstack] must be dict')
-		#		config['openstack'] = {}
+if __name__ == "__main__":
+	import argparse
 
-		#	config['openstack'].setdefault('admin': {})
-		#	if type(config['openstack']['admin']) is not dict:
-		#		logger.error('Configuration has wrong format, the value of [openstack][admin] must be dict')
-		#		config['openstack']['admin'] = {}
+	# Set console logger
+	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	root = logging.getLogger()
+	ch = logging.StreamHandler()
+	ch.setLevel(logging.DEBUG)
+	ch.setFormatter(formatter)
+	root.addHandler(ch)
 
-		#	config['openstack']['admin'].setdefault('user', 'admin')
-		#	config['openstack']['admin'].setdefault('tenant', 'admin')
-		#	config['openstack']['admin'].setdefault('password', 'sscloudadmin')
-		#	config['openstack']['admin'].setdefault('email', 'admin@localhost')
-		#	config['openstack']['admin'].setdefault('token', check_output('openssl rand -hex 10', shell=True))
-		#	config['openstack'].setdefault('controller': uname()[1])
-		#	config['openstack'].setdefault('compute': [])
-		#	if type(config['openstack']['compute']) is not list:
-		#		config['openstack']['compute'] = [uname()[1]]
+	# Set args parser
+	parser = argparse.ArgumentParser(
+		description = 'SSCloud configuration management'
+	)
 
-		
-	
+	parser.add_argument('-c', '--config', default='/etc/sscloud/config.yml', help='the path of SSCloud configuration.')
+	parser.add_argument('-u', '--user', default='admin', help='user name of SSCloud administrator.')
+	parser.add_argument('-p', '--password', help='password for SSCloud administrator.')
+	parser.add_argument('-t', '--tenant', default='admin', help='tenant name for SSCloud administrator.')
+	parser.add_argument('--token', help="admin token for SSCloud keystone.")
+	parser.add_argument('--email', help="email address of SSCloud administrator")
+	parser.add_argument('--controller', help='hostname of controller node.')
+	parser.add_argument('-d', '--domainname', help='web domain name for SSCloud dashboard.')
+	parser.add_argument('--https', action="store_true", help="enable HTTPS portocol for SSCloud dashboard.")
+	parser.add_argument('--cacrt', help="path of ssl crt file for SSCloud dashboard")
+	parser.add_argument('--cakey', help="path of ssl key file for SSCloud dashboard")
+
+	args = parser.parse_args()
+
+	# Process args
+	if not args.password:
+		args.password = getpass()
+
+	if args.https:
+		print "Enable https on SSCloud dashboard."
+		args.cacrt = args.cacrt if args.cacrt else raw_input('File path of ca certificate: ')
+		args.cakey = args.cakey if args.cakey else raw_input('File path of ca public key: ')
+
+	# Remove empty setting from args
+	kwargs = dict( (k,v) for k, v in vars(args).iteritems() if v)
+
+	# Generate SSCloud configuration
+	obj = configs(kwargs.pop('config'))
+	print obj.genconfig(kwargs.pop('user'), kwargs.pop('password'), **kwargs)
+
