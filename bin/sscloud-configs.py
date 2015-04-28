@@ -54,6 +54,7 @@ class configs:
 		sscloud['controller'] = str(kwargs.setdefault('controller', uname()[1]))
 		#sscloud['compute'] = list().append(sscloud['controller'])
 		sscloud['compute'] = [sscloud['controller']]
+		sscloud['region'] = 'regionOne'
 
 		# SSCloud dashboard
 		dashboard = dict()

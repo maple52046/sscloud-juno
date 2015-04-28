@@ -1,29 +1,25 @@
 network_topology:
   localhost:
     openvswitch:
-      br-ex: {{ extdev }}
-    {{ extdev }}:
-      {% for ipset in iplist %}
-      - {{ ipset }}
-      {% endfor %}
+      br-ex: eth0
+    eth0:
+      - [ '192.168.0.1', '255.255.255.0', '192.168.0.254' ]
+      - [ '172.16.0.1', '255.255.0.0' ]
 
 openstack:
   admin:
-    user: {{ admin.user }}
-    tenant: {{ admin.tenant }}
-    password: {{ admin.password }}
-    email: {{ admin.email }}
-    token: {{ admin.token }}
-  controller: {{ controller }}
+    user: admin
+    tenant: admin
+    password: sscloudadmin
+    email: admin@localhost
+    token: 0cc90602a527c5ab3fe8
+  controller: localhost
   compute:
-    {% for compute in computes %}
-    - {{ compute }}
-    {% endfor %}
+    - localhost
   horizon:
-    domain: {{ domain }}
+    domain: localhost
     https:
-      enable: {{ https.enable }}
-      {% if https.enable %}
-      crt: {{ https.crt }}
-      key: {{ https.key }}
-      {% endif %}
+      enable: True
+      crt: /etc/sscloud/ssl/sscloud.crt
+      key: /etc/sscloud/ssl/sscloud.crt
+  region: regionOne
