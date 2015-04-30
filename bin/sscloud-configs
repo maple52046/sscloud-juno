@@ -139,12 +139,17 @@ if __name__ == "__main__":
 	import argparse
 
 	# Set console logger
-	formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-	root = logging.getLogger()
-	ch = logging.StreamHandler()
-	ch.setLevel(logging.DEBUG)
-	ch.setFormatter(formatter)
-	root.addHandler(ch)
+	try:
+		import coloredlogs
+		coloredlogs.install(level=logging.DEBUG)
+	except:
+		formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+		root = logging.getLogger()
+		root.setLevel(logging.DEBUG)
+		ch = logging.StreamHandler()
+		ch.setLevel(logging.DEBUG)
+		ch.setFormatter(formatter)
+		root.addHandler(ch)
 
 	# Set args parser
 	parser = argparse.ArgumentParser(
