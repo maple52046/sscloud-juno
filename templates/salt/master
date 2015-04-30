@@ -306,10 +306,10 @@ file_ignore_regex:
 # to file_ignore_regex above, but works on globs instead of regex. By default
 # nothing is ignored.
 #
-# file_ignore_glob:
-#  - '*.pyc'
-#  - '*/somefolder/*.bak'
-#  - '*.swp'
+file_ignore_glob:
+ - '*.pyc'
+ - '*.bak'
+ - '*.swp'
 
 # File Server Backend
 # Salt supports a modular fileserver backend system, this system allows
@@ -374,7 +374,7 @@ file_ignore_regex:
 #  - cmd_yaml: cat /etc/salt/yaml
 
 ext_pillar:
-  - cmd_yaml: cat /etc/sscloud/config.yml
+  - cmd_yaml: cat {{ settings.config }}
 
 # The pillar_opts option adds the master configuration file data to a dict in
 # the pillar called "master". This is used to set simple configurations in the
