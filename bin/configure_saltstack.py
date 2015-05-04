@@ -122,7 +122,7 @@ class salt:
 		
 		apt_cache = apt.cache.Cache()
 		logger.debug('Updating cache of apt-get')
-		#apt_cache.update()
+		apt_cache.update()
 
 		# Install packages
 		services = ['salt-minion']
@@ -191,10 +191,6 @@ class salt:
 						return False
 
 		return True
-
-		
-
-
 
 if __name__ == "__main__":
 	import argparse
