@@ -1,4 +1,7 @@
-#!/opt/sscloud/bin/python
+#!/usr/bin/env python
+
+# virtualenv setting
+execfile('setvenv', dict(__file__='setvenv'))
 
 import logging
 import netaddr

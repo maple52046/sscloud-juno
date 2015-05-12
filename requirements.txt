@@ -5,5 +5,4 @@ argparse==1.2.1
 coloredlogs==0.8
 netaddr==0.7.14
 netifaces==0.10.4
-python-apt==0.0.0
 wsgiref==0.1.2
